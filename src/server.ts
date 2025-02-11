@@ -15,7 +15,8 @@ const isProduction = process.env.NODE_ENV === "production";
 // Server port, host and http(s)
 const PORT = Number(process.env.PORT) || 5000;
 const HOST = process.env.HOST || (isProduction ? "0.0.0.0" : "127.0.0.1");
-const isHttps = isProduction;
+const HTTPS_VALUES = new Set(["true", "1", "on"]);
+const isHttps = HTTPS_VALUES.has(process.env.HTTPS_ON?.toLowerCase() || "");
 // Allowed frontend origin
 const ALLOWED_ORIGIN = process.env.RECIPE_APP_ALLOWED_ORIGIN;
 const app = express();
