@@ -1,22 +1,25 @@
+import cookieParser from "cookie-parser";
 import cors from "cors";
 import dotenv from "dotenv";
 import type { NextFunction, Request, Response } from "express";
 import express from "express";
 import http from "http";
 import https from "https";
-import { gracefulShutdown } from "./lib/utils.js";
+import { othersController } from "./controllers/others.js";
+import { gracefulShutdown, isHttpsOn, isProd } from "./lib/utils.js";
+import { authenticate } from "./middlewares/authenticate.js";
 import { sanitizeQueryParams } from "./middlewares/queryValidation.js";
 import { cuisineRouter } from "./routes/cuisine.js";
+import { userRouter } from "./routes/user.js";
 
 // Load vars from .env
 dotenv.config();
 // NODE_ENV
-const isProduction = process.env.NODE_ENV === "production";
+const isProduction = isProd();
 // Server port, host and http(s)
 const PORT = Number(process.env.PORT) || 5000;
 const HOST = process.env.HOST || (isProduction ? "0.0.0.0" : "127.0.0.1");
-const HTTPS_VALUES = new Set(["true", "1", "on"]);
-const isHttps = HTTPS_VALUES.has(process.env.HTTPS_ON?.toLowerCase() || "");
+const isHttps = isHttpsOn();
 // Allowed frontend origin
 const ALLOWED_ORIGIN = process.env.RECIPE_APP_ALLOWED_ORIGIN;
 const app = express();
@@ -27,10 +30,17 @@ app.use(
     origin: ALLOWED_ORIGIN,
     methods: ["GET"],
     allowedHeaders: ["Content-Type"],
+    credentials: true,
   })
 );
+app.use(cookieParser());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 // Proxy route
-app.use("/recipe-api/", sanitizeQueryParams, cuisineRouter);
+app.use("/auth", userRouter);
+app.use("/recipe-api", authenticate, sanitizeQueryParams, cuisineRouter);
+app.use("*", othersController.wrongPath);
 
 // Handle errors
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
